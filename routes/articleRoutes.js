@@ -10,15 +10,17 @@ const {
     deleteArticle
 } = require('../controller/articleController');
 
-// Rute untuk mendapatkan semua artikel dan membuat artikel baru
-router.route('/')
-    .get(getAllArticles)
-    .post(createArticle);
+// Impor middleware 'protect'
+const { protect } = require('../middleware/authMiddleware');
 
-// Rute untuk mendapatkan, mengupdate, dan menghapus satu artikel berdasarkan ID
-router.route('/:id')
-    .get(getArticleById)
-    .put(updateArticle)
-    .delete(deleteArticle);
+// === Rute Publik (Siapa saja bisa akses) ===
+router.route('/').get(getAllArticles);
+router.route('/:id').get(getArticleById);
+
+// === Rute Terlindungi (Hanya pengguna yang sudah login bisa akses) ===
+// Terapkan middleware 'protect' sebelum controllernya
+router.route('/').post(protect, createArticle);
+router.route('/:id').put(protect, updateArticle);
+router.route('/:id').delete(protect, deleteArticle);
 
 module.exports = router;

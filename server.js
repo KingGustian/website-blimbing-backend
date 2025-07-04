@@ -1,11 +1,11 @@
-// server.js (Versi Final yang Rapi)
+// server.js
 
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
-// Impor file rute
+// Perbaiki path ini untuk menunjuk ke folder 'routes'
 const articleRoutes = require('./routes/articleRoutes');
 const userRoutes = require('./routes/userRoutes');
 
@@ -13,8 +13,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors()); // Mengizinkan akses dari domain lain
-app.use(express.json()); // Mem-parsing body request menjadi JSON
+app.use(cors());
+app.use(express.json());
 
 // Koneksi ke Database
 mongoose.connect(process.env.MONGODB_URI)
@@ -22,12 +22,8 @@ mongoose.connect(process.env.MONGODB_URI)
     .catch(err => console.error('❌ Gagal terhubung ke MongoDB:', err));
 
 // Middleware untuk Rute
-// Semua rute yang didefinisikan di articleRoutes akan memiliki awalan /api/articles
 app.use('/api/articles', articleRoutes);
-
-// Semua rute yang didefinisikan di userRoutes akan memiliki awalan /api/users
-app.use('/api/users', userRoutes);
-
+app.use('/api/users', userRoutes); // Path ini sekarang benar karena file userRoutes ada di dalam folder routes
 
 // Jalankan Server
 app.listen(PORT, () => {

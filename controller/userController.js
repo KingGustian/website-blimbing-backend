@@ -1,55 +1,105 @@
-// userController.js
+// controllers/userController.js
 
-const User = require('./userModel'); // Kita akan membuat file ini selanjutnya
-// Jika Anda menginstal bcryptjs, uncomment baris ini
-// const bcrypt = require('bcryptjs');
+// Pastikan path ini benar menunjuk ke file userModel.js Anda
+const User = require('../model/userModel');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-// Fungsi untuk pendaftaran pengguna baru
+// Anda harus mendefinisikan JWT_SECRET. Praktik terbaik adalah menyimpannya di file .env
+// Contoh: const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = 'secret_key_yang_sangat_aman_dan_panjang';
+
+// --- Fungsi untuk pendaftaran pengguna baru ---
 exports.registerUser = async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password } = req.body;
 
-    try {
-        // --- PENTING: UNTUK PRODUKSI, HASILKAN password di sini menggunakan bcrypt ---
-        // const hashedPassword = await bcrypt.hash(password, 10);
-        // const newUser = new User({ name, email, password: hashedPassword });
-        // ---
+    // Validasi input dasar
+    if (!name || !email || !password) {
+        return res.status(400).json({ message: 'Semua field wajib diisi' });
+    }
 
-        // Untuk pengembangan awal tanpa hashing:
-        const newUser = new User({ name, email, password });
+    try {
+        // 1. Cek apakah email sudah terdaftar
+        let user = await User.findOne({ email });
+        if (user) {
+            return res.status(400).json({ message: 'Email sudah terdaftar' });
+        }
 
-        await newUser.save();
-        res.status(201).json({ message: 'Pendaftaran berhasil! Silakan login.' });
-    } catch (err) {
-        if (err.code === 11000) { // Kode error MongoDB untuk duplikat key (email sudah terdaftar)
-            return res.status(409).json({ message: 'Email sudah terdaftar.' });
-        }
-        res.status(400).json({ message: err.message });
-    }
+        // 2. Buat instance user baru
+        user = new User({
+            name,
+            email,
+            password,
+        });
+
+        // 3. Hash kata sandi sebelum disimpan
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(password, salt);
+
+        // 4. Simpan pengguna ke database
+        await user.save();
+
+        // Kirim respons sukses
+        res.status(201).json({ 
+            message: 'Registrasi berhasil',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email
+            }
+        });
+
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Server Error');
+    }
 };
 
-// Fungsi untuk login pengguna
+// --- Fungsi untuk login pengguna ---
 exports.loginUser = async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password } = req.body;
 
-    try {
-        const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ message: 'Email atau kata sandi salah.' });
-        }
+    // Validasi input
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email dan kata sandi wajib diisi' });
+    }
 
-        // --- PENTING: UNTUK PRODUKSI, BANDINGKAN password yang di-hash di sini ---
-        // const isMatch = await bcrypt.compare(password, user.password);
-        // if (!isMatch) { ... }
-        // ---
+    try {
+        // 1. Cek pengguna berdasarkan email
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ message: 'Email atau kata sandi salah' });
+        }
 
-        // Untuk pengembangan awal tanpa hashing:
-        if (password !== user.password) {
-            return res.status(400).json({ message: 'Email atau kata sandi salah.' });
-        }
+        // 2. Bandingkan kata sandi yang diberikan dengan hash di database
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Email atau kata sandi salah' });
+        }
 
-        // Jika Anda menggunakan JWT (JSON Web Tokens), Anda akan membuat dan mengirim token di sini
-        res.json({ message: 'Login berhasil!', user: { name: user.name, email: user.email } });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
+        // 3. Buat payload untuk JWT
+        const payload = {
+            user: {
+                id: user.id,
+            },
+        };
+
+        // 4. Buat dan tandatangani token JWT
+        jwt.sign(
+            payload,
+            JWT_SECRET,
+            { expiresIn: '5h' }, // Token berlaku selama 5 jam
+            (err, token) => {
+                if (err) throw err;
+                res.json({ 
+                    message: 'Login berhasil',
+                    token,
+                    name: user.name // Mengirim nama untuk ditampilkan di frontend
+                });
+            }
+        );
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Server Error');
+    }
+}; 
