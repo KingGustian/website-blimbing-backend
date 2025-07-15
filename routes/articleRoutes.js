@@ -19,8 +19,8 @@ router.route('/:id').get(getArticleById);
 
 // === Rute Terlindungi (Hanya pengguna yang sudah login bisa akses) ===
 // Terapkan middleware 'protect' sebelum controllernya
-router.route('/').post(protect, createArticle);
-router.route('/:id').put(protect, updateArticle);
-router.route('/:id').delete(protect, deleteArticle);
+router.route('/').post(createArticle);
+router.route('/:id').put(updateArticle);
+router.route('/:id').delete(deleteArticle);
 
 module.exports = router;
